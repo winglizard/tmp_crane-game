@@ -15,6 +15,13 @@ craneArm.src = "images/crane_arm.png";
 prizeImg.src = "images/prize1.png";
 
 const buffer = 20; // 当たり判定バッファ
+const btnYline = 400;	// ボタン配置の高さ
+// ======== ボタン配置 ========
+const buttons = [
+  { name: "left",  x: 50,  y: btnYline, w: 60, h: 40, label: "◀" },
+  { name: "down",  x: 120, y: btnYline, w: 60, h: 40, label: "●" },
+  { name: "right", x: 190, y: btnYline, w: 60, h: 40, label: "▶" }
+];
 
 //// ======== 景品フォルダのファイル名一覧 ========
 //const prizeImageList = [
@@ -41,12 +48,9 @@ let isLifting = false;
 let moveLeft = false;
 let moveRight = false;
 let endflg = false;
+let activeButton = null; // 押されているボタン名
 
-//let score = 0;
-//let playCount = 0;
-//let playLife = 5;
-//let lifesize = 20;
-let message = "移動：←→ ／ 鈎をおろす：SPACE";
+let message = "Push button";
 
 // ======== 景品 ========
 let prize = {
@@ -78,7 +82,23 @@ function drawCrane() {
   }
 }
 
-// ======== 景品描画 ========
+// ======== ボタン描画 ========
+function drawButtons(ctx) {
+  ctx.font = "20px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  buttons.forEach(btn => {
+    ctx.fillStyle = "#ddd";
+    ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
+    ctx.strokeStyle = "#555";
+    ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
+    ctx.fillStyle = "#000";
+    ctx.fillText(btn.label, btn.x + btn.w / 2, btn.y + btn.h / 2);
+  });
+}
+
+ // ======== 景品描画 ========
 function drawPrize() {
   if (prize.image.complete) {
     ctx.drawImage(prize.image, prize.x - prize.size / 2, prize.y - prize.size / 2, prize.size, prize.size);
@@ -89,19 +109,13 @@ function drawPrize() {
 function drawHUD() {
   ctx.font = "20px Arial";
   ctx.fillStyle = "white";
- // ctx.fillText(`SCORE: ${score}`, 20, 30);
- // ctx.fillText(`PLAYS: ${playCount}`, 20, 60);
-
+  
   ctx.font = "28px 'Arial Black'";
   ctx.fillStyle = "purple";
   ctx.textAlign = "center";
   ctx.fillText(message, canvas.width / 2, 150);
   ctx.textAlign = "left";
-  
-//  // ライフ
-//  for (let x = 0; x < playLife; x++){
-//  	if (life.complete) ctx.drawImage(life, lifesize + (x * 60), 90, 50, 50);
-//  }
+
 }
 
 // ======== 当たり判定 ========
@@ -117,22 +131,30 @@ function checkCatch() {
 
 // ======== 更新処理 ========
 function update() {
+	const speed = 3;
 if(!endflg){
+	
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   if (bgImage.complete) ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
 
-  // クレーン移動
+  //  // クレーン移動
   if (!isDropping && !isLifting) {
-    if (moveLeft) craneX -= 4;
-    if (moveRight) craneX += 4;
-    craneX = Math.max(0, Math.min(700, craneX));
+	  if (activeButton === "left")  craneX -= speed;
+	  if (activeButton === "right") craneX += speed;
+      	craneX = Math.max(0, Math.min(700, craneX));
   }
+//  // クレーン移動
+//  if (!isDropping && !isLifting) {
+//    if (moveLeft) craneX -= 4;
+//    if (moveRight) craneX += 4;
+//    craneX = Math.max(0, Math.min(700, craneX));
+//  }
 
   // 降下処理
   if (isDropping) {
     armLength += 4;
-    if (armLength > 330) {
+    if (armLength > 300) {
       isDropping = false;
       isClosing = true;
       checkCatch();
@@ -170,6 +192,7 @@ if(!endflg){
     }
   }
 
+  drawButtons(ctx);
   drawPrize();
   drawCrane();
   drawHUD();
@@ -179,19 +202,60 @@ if(!endflg){
 }
 
 // ======== 操作 ========
-document.addEventListener("keydown", (e) => {
-  if (e.code === "ArrowLeft") moveLeft = true;
-  if (e.code === "ArrowRight") moveRight = true;
-  if (e.code === "Space" && !isDropping && !isLifting) {
-    isDropping = true;
-    //playCount++;
-    message = "GO!";
-  }
+canvas.addEventListener("touchstart", e => {
+  const rect = canvas.getBoundingClientRect();
+  const touch = e.touches[0];
+  const x = touch.clientX - rect.left;
+  const y = touch.clientY - rect.top;
+
+  buttons.forEach(btn => {
+    if (x >= btn.x && x <= btn.x + btn.w &&
+        y >= btn.y && y <= btn.y + btn.h) {
+      activeButton = btn.name;
+    }
+  });
 });
-document.addEventListener("keyup", (e) => {
-  if (e.code === "ArrowLeft") moveLeft = false;
-  if (e.code === "ArrowRight") moveRight = false;
+
+canvas.addEventListener("touchend", () => {
+  activeButton = null;
 });
+
+
+canvas.addEventListener("mousedown", e => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  buttons.forEach(btn => {
+    if (x >= btn.x && x <= btn.x + btn.w &&
+        y >= btn.y && y <= btn.y + btn.h) {
+      activeButton = btn.name;
+    }
+  });
+    if (activeButton === "down" && !isDropping && !isLifting) {
+      isDropping = true;
+      //playCount++;
+      message = "GO!";
+    }
+});
+
+canvas.addEventListener("mouseup", () => {
+  activeButton = null;
+});
+
+//document.addEventListener("keydown", (e) => {
+//  if (e.code === "ArrowLeft") moveLeft = true;
+//  if (e.code === "ArrowRight") moveRight = true;
+//  if (e.code === "Space" && !isDropping && !isLifting) {
+//    isDropping = true;
+//    //playCount++;
+//    message = "GO!";
+//  }
+//});
+//document.addEventListener("keyup", (e) => {
+//  if (e.code === "ArrowLeft") moveLeft = false;
+//  if (e.code === "ArrowRight") moveRight = false;
+//});
 
 
 update();
